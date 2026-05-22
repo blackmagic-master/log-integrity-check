@@ -2,10 +2,13 @@
 
 # Default configuration variables
 store_in_def="/var/log"
-hash_file_name_def="hashes.0"
-hash_file_def="$store_in_def/.hashes"
+hash_file_name_def=".hashes.0"
+hash_file_def="$store_in_def/$hash_file_name_def"
 
+# Current configuration variables (can be overridden by passed arguments)
+store_in="$store_in_def"
 hash_file_name="$hash_file_name_def"
+hash_file="$hash_file_def"
 
 # Passed arguments
 ARGS=($1 $2 $3)
@@ -13,8 +16,6 @@ ARGS=($1 $2 $3)
 # Script path and version
 script=$(realpath $0)
 version="1.1"
-
-
 
 store(){
     dir=""
@@ -32,19 +33,19 @@ store(){
                     exit 1
                 fi
                 if [ ! -z "$dir" ]; then
-                    if [ -f "$dir/.$hash_file_name" ]; then
-                        echo "Hash file already exists: $dir/.$hash_file_name"
-                        temp_store=$(cat $dir/.$hash_file_name)
-                        find ${ARGS[1]} -type f | xargs sha256sum > $dir/.$hash_file_name 2> /dev/null
+                    if [ -f "$dir/$hash_file_name" ]; then
+                        echo "Hash file already exists: $dir/$hash_file_name"
+                        temp_store=$(cat $dir/$hash_file_name)
+                        find ${ARGS[1]} -type f | xargs sha256sum > $dir/$hash_file_name 2> /dev/null
                         for i in $(echo $temp_store | awk '{print $2}'); do
-                            if ! grep -q "$(echo $i | awk '{print $2}')" $dir/.$hash_file_name; then
-                                echo $i >> $dir/.$hash_file_name
+                            if ! grep -q "$(echo $i | awk '{print $2}')" $dir/$hash_file_name; then
+                                echo $i >> $dir/$hash_file_name
                             fi
                         done
                     else
-                        touch "$dir/.$hash_file_name"
-                        echo "Hash file created: $dir/.$hash_file_name"
-                        find ${ARGS[1]} -type f | xargs sha256sum > $dir/.$hash_file_name 2> /dev/null
+                        touch "$dir/$hash_file_name"
+                        echo "Hash file created: $dir/$hash_file_name"
+                        find ${ARGS[1]} -type f | xargs sha256sum > $dir/$hash_file_name 2> /dev/null
                     fi
                 else
                     echo "error: could not determine directory from specified path: ${ARGS[1]}"
@@ -63,9 +64,9 @@ store(){
                 fi
             done
         else
-            touch "$hash_file_def"
-            echo "Hash file created: $hash_file_def"
-            find $store_in_def -type f | xargs sha256sum > $hash_file_def 2> /dev/null
+            touch "$hash_file"
+            echo "Hash file created: $hash_file"
+            find $store_in_def -type f | xargs sha256sum > $hash_file 2> /dev/null
         fi
     fi
 }
@@ -86,11 +87,11 @@ check(){
                     exit 1
                 fi
                 if [ ! -z "$dir" ]; then
-                    if [ -f "$dir/.$hash_file_name" ]; then
-                        echo "Hashes are stored in: $dir/.$hash_file_name"
-                        files=$(cat $dir/.$hash_file_name | grep "${ARGS[1]}" | awk '{print $2}')
+                    if [ -f "$dir/$hash_file_name" ]; then
+                        echo "Hashes are stored in: $dir/$hash_file_name"
+                        files=$(cat $dir/$hash_file_name | grep "${ARGS[1]}" | awk '{print $2}')
 						for file in $files; do
-							hash=$(cat $dir/.$hash_file_name | grep $file | awk '{print $1}')
+							hash=$(cat $dir/$hash_file_name | grep $file | awk '{print $1}')
 							current_hash=$(sha256sum $file | awk '{print $1}')
 							if ! grep -q "$hash_file_name" $file; then
 								if [ "$hash" != "$current_hash" ]; then
@@ -101,7 +102,7 @@ check(){
 							fi
 						done
                     else
-                        echo "error: hash file does not exist: $dir/.$hash_file_name"
+                        echo "error: hash file does not exist: $dir/$hash_file_name"
 						exit 1
                     fi
                 else
@@ -110,12 +111,12 @@ check(){
                 fi
         fi
 	else
-		echo "Hashes are stored in: $dir/.$hash_file_def"
-		files=$(cat $hash_file_def | grep "$store_in_def" | awk '{print $2}')
+		echo "Hashes are stored in: $hash_file"
+		files=$(cat $hash_file | grep "$store_in" | awk '{print $2}')
 		for file in $files; do
-			hash=$(cat $dir/.$hash_file_def | grep $file | awk '{print $1}')
+			hash=$(cat $hash_file | grep $file | awk '{print $1}')
 			current_hash=$(sha256sum $file | awk '{print $1}')
-			if ! grep -q "$hash_file_def" $file; then
+			if ! grep -q "$hash_file" $file 2> /dev/null; then
 				if [ "$hash" != "$current_hash" ]; then
 					echo "File integrity compromised: $file"
 				else
@@ -123,6 +124,43 @@ check(){
 				fi
 			fi
 		done
+    fi
+}
+
+clean(){
+	if [ ! -z "${ARGS[1]}" ]; then
+        if [ ! -e "${ARGS[1]}" ]; then
+            echo "error: specified path does not exist: ${ARGS[1]}"
+            exit 1
+            else
+                if [ -d "${ARGS[1]}" ]; then
+                    dir=$(echo "$(dirname "${ARGS[1]}")/$(basename "${ARGS[1]}")")
+                elif [ -f "${ARGS[1]}" ]; then
+                    dir=$(dirname "${ARGS[1]}")
+                else
+                    echo "error: specified path is not a file or directory: ${ARGS[1]}"
+                    exit 1
+                fi
+                if [ ! -z "$dir" ]; then
+                    if [ -f "$dir/$hash_file_name" ]; then
+                        echo "Hashes are stored in: $dir/$hash_file_name"
+                        echo "Cleaning hashes..."
+						rm -f $dir/$hash_file_name
+						echo "Hashes cleaned: $dir/$hash_file_name"
+                    else
+                        echo "Nothing to do. Hash file does not exist: $dir/$hash_file_name"
+						exit 1
+                    fi
+                else
+                    echo "error: could not determine directory from specified path: ${ARGS[1]}"
+                    exit 1
+                fi
+        fi
+	else
+		echo "Hashes are stored in: $hash_file"
+		echo "Cleaning hashes..."
+		rm -f $hash_file
+		echo "Hashes cleaned: $hash_file"
     fi
 }
 
@@ -152,7 +190,7 @@ main(){
             echo "Usage: $0 {store|check|config} [options]"
             ;;
         "clean")
-            echo "Clean function not implemented yet."
+            clean
             ;;
         "version")
             version
