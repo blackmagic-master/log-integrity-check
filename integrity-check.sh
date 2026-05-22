@@ -71,7 +71,59 @@ store(){
 }
 
 check(){
-    echo "check function called with argument: ${ARGS[1]}"
+	dir=""
+    if [ ! -z "${ARGS[1]}" ]; then
+        if [ ! -e "${ARGS[1]}" ]; then
+            echo "error: specified path does not exist: ${ARGS[1]}"
+            exit 1
+            else
+                if [ -d "${ARGS[1]}" ]; then
+                    dir=$(echo "$(dirname "${ARGS[1]}")/$(basename "${ARGS[1]}")")
+                elif [ -f "${ARGS[1]}" ]; then
+                    dir=$(dirname "${ARGS[1]}")
+                else
+                    echo "error: specified path is not a file or directory: ${ARGS[1]}"
+                    exit 1
+                fi
+                if [ ! -z "$dir" ]; then
+                    if [ -f "$dir/.$hash_file_name" ]; then
+                        echo "Hashes are stored in: $dir/.$hash_file_name"
+                        files=$(cat $dir/.$hash_file_name | grep "${ARGS[1]}" | awk '{print $2}')
+						for file in $files; do
+							hash=$(cat $dir/.$hash_file_name | grep $file | awk '{print $1}')
+							current_hash=$(sha256sum $file | awk '{print $1}')
+							if ! grep -q "$hash_file_name" $file; then
+								if [ "$hash" != "$current_hash" ]; then
+									echo "File integrity compromised: $file"
+								else
+									echo "File integrity verified: $file"
+								fi
+							fi
+						done
+                    else
+                        echo "error: hash file does not exist: $dir/.$hash_file_name"
+						exit 1
+                    fi
+                else
+                    echo "error: could not determine directory from specified path: ${ARGS[1]}"
+                    exit 1
+                fi
+        fi
+	else
+		echo "Hashes are stored in: $dir/.$hash_file_def"
+		files=$(cat $hash_file_def | grep "$store_in_def" | awk '{print $2}')
+		for file in $files; do
+			hash=$(cat $dir/.$hash_file_def | grep $file | awk '{print $1}')
+			current_hash=$(sha256sum $file | awk '{print $1}')
+			if ! grep -q "$hash_file_def" $file; then
+				if [ "$hash" != "$current_hash" ]; then
+					echo "File integrity compromised: $file"
+				else
+					echo "File integrity verified: $file"
+				fi
+			fi
+		done
+    fi
 }
 
 config(){
