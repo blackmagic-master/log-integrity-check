@@ -78,6 +78,13 @@ config(){
     echo "config function called with argument: ${ARGS[1]}"
 }
 
+version(){
+	echo "Integrity Check Tool"
+	echo "Version: $version"
+	echo "Author: BlackMagic Master - Szymon G."
+	echo "Version date: 2026-05-21"
+}
+
 main(){
     case "${ARGS[0]}" in
         "store")
@@ -96,7 +103,7 @@ main(){
             echo "Clean function not implemented yet."
             ;;
         "version")
-            echo "Version: $version"
+            version
             ;;
         *)
             echo "Invalid command: ${ARGS[0]}"
