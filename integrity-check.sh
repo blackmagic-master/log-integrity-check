@@ -17,6 +17,20 @@ ARGS=($1 $2 $3)
 script=$(realpath $0)
 version="1.1"
 
+root_check(){
+	if [ "$EUID" -ne 0 ]; then
+		echo "error: this script must be run as root"
+		exit 1
+	fi
+}
+
+existance_check(){
+	if [ ! -e "$1" ]; then
+		echo "error: given path does not exist: $1"
+		exit 1
+	fi
+}
+
 store(){
     dir=""
     if [ ! -z "${ARGS[1]}" ]; then
@@ -165,7 +179,37 @@ clean(){
 }
 
 config(){
-    echo "config function called with argument: ${ARGS[1]}"
+    case ${ARGS[1]} in
+		"log")
+			existance_check "${ARGS[2]}"
+			sed -i'' "0,/store_in=.*/s|store_in=.*|store_in=\"${ARGS[2]}\"|" "$script"
+			echo "Log directory set to: ${ARGS[2]}"
+			;;
+		"hash")
+			sed -i'' "0,/hash_file_name=.*/s|hash_file_name=.*|hash_file_name=\"${ARGS[2]}\"|" "$script"
+			echo "Hash file name set to: ${ARGS[2]}"
+			;;
+		"default")
+			sed -i'' "0,/store_in=.*/s|store_in=.*|store_in=\"$store_in_def\"|" "$script"
+			sed -i'' "0,/hash_file_name=.*/s|hash_file_name=.*|hash_file_name=\"$hash_file_name_def\"|" "$script"
+			echo "Configuration reset to default values"
+			;;
+		"show")
+			echo "##### configuration #######"
+			echo "Default configuration:"
+			echo "Log directory: $store_in_def"
+			echo "Hash file name: $hash_file_name_def"
+			echo "###########################"
+			echo "Current configuration:"
+			echo "Log directory: $store_in"
+			echo "Hash file name: $hash_file_name"
+			echo "###########################"
+			;;
+		*)
+			echo "error: unknown configuration option: ${ARGS[1]}"
+			echo "use 'help' command for usage information"
+			exit 5
+	esac
 }
 
 version(){
@@ -175,7 +219,29 @@ version(){
 	echo "Version date: 2026-05-21"
 }
 
+help(){
+	echo "Usage: $(basename $0) {store|check|clean|config|version|help} [options]"
+	echo "Commands:"
+	echo "  store [path]   - Store hashes of files in the specified path (default: $store_in_def)"
+	echo "  check [path]   - Check integrity of files in the specified path (default: $store_in_def)"
+	echo "  clean [path]   - Clean stored hashes for the specified path (default: $store_in_def)"
+	echo "  config option value - Configure settings (options: log, hash, default, show)"
+	echo "                   log - Set log directory"
+	echo "                   hash - Set hash file name"
+	echo "                   default - Reset configuration to default values"
+	echo "                   show - Show current and default configuration"
+	echo "  version        - Show version information"
+	echo "  help           - Show this help message"
+}
+
+error(){
+			echo "Invalid command: ${ARGS[0]}"
+            echo "Usage: $(basename $0) {store|check|update|config} [options]"
+            exit 1
+}
+
 main(){
+	root_check
     case "${ARGS[0]}" in
         "store")
             store
@@ -196,9 +262,7 @@ main(){
             version
             ;;
         *)
-            echo "Invalid command: ${ARGS[0]}"
-            echo "Usage: $0 {store|check|update|config} [options]"
-            exit 1
+            error
             ;;
     esac
 }
