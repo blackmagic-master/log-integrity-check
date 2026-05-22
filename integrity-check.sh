@@ -8,7 +8,7 @@ hash_file_def="$store_in_def/$hash_file_name_def"
 # Current configuration variables (can be overridden by passed arguments)
 store_in="$store_in_def"
 hash_file_name="$hash_file_name_def"
-hash_file="$hash_file_def"
+hash_file="$store_in/$hash_file_name"
 
 # Passed arguments
 ARGS=($1 $2 $3)
@@ -24,6 +24,7 @@ root_check(){
 	fi
 }
 
+# Function to check if a given path exists
 existance_check(){
 	if [ ! -e "$1" ]; then
 		echo "error: given path does not exist: $1"
@@ -31,6 +32,7 @@ existance_check(){
 	fi
 }
 
+# Store hashes of files in the specified path (or default path if not specified)
 store(){
     dir=""
     if [ ! -z "${ARGS[1]}" ]; then
@@ -67,24 +69,25 @@ store(){
                 fi
         fi
     else
-        echo "Using default log directory: $store_in_def"
-        if [ -f "$hash_file_def" ]; then
-            echo "Hash file already exists: $hash_file_def"
-            temp_store=$(cat $hash_file_def)
-            find $store_in_def -type f | xargs sha256sum > $hash_file_def 2> /dev/null
+        echo "Using default log directory: $store_in"
+        if [ -f "$hash_file" ]; then
+            echo "Hash file already exists: $hash_file"
+            temp_store=$(cat $hash_file)
+            find $store_in -type f | xargs sha256sum > $hash_file 2> /dev/null
             for i in $(echo $temp_store | awk '{print $2}'); do
-                if ! grep -q "$(echo $i | awk '{print $2}')" $hash_file_def; then
-                    echo $i >> $hash_file_def
+                if ! grep -q "$(echo $i | awk '{print $2}')" $hash_file; then
+                    echo $i >> $hash_file
                 fi
             done
         else
             touch "$hash_file"
             echo "Hash file created: $hash_file"
-            find $store_in_def -type f | xargs sha256sum > $hash_file 2> /dev/null
+            find $store_in -type f | xargs sha256sum > $hash_file 2> /dev/null
         fi
     fi
 }
 
+# Check integrity of files in the specified path (or default path if not specified)
 check(){
 	dir=""
     if [ ! -z "${ARGS[1]}" ]; then
@@ -125,22 +128,28 @@ check(){
                 fi
         fi
 	else
-		echo "Hashes are stored in: $hash_file"
-		files=$(cat $hash_file | grep "$store_in" | awk '{print $2}')
-		for file in $files; do
-			hash=$(cat $hash_file | grep $file | awk '{print $1}')
-			current_hash=$(sha256sum $file | awk '{print $1}')
-			if ! grep -q "$hash_file" $file 2> /dev/null; then
-				if [ "$hash" != "$current_hash" ]; then
-					echo "File integrity compromised: $file"
-				else
-					echo "File integrity verified: $file"
+		if [ -f "$hash_file" ]; then
+			echo "Hashes are stored in: $hash_file"
+			files=$(cat $hash_file | grep "$store_in" | awk '{print $2}')
+			for file in $files; do
+				hash=$(cat $hash_file | grep $file | awk '{print $1}')
+				current_hash=$(sha256sum $file | awk '{print $1}')
+				if ! grep -q "$hash_file" $file 2> /dev/null; then
+					if [ "$hash" != "$current_hash" ]; then
+						echo "File integrity compromised: $file"
+					else
+						echo "File integrity verified: $file"
+					fi
 				fi
-			fi
-		done
+			done
+		else
+			echo "error: hash file does not exist: $hash_file"
+			exit 1
+		fi
     fi
 }
 
+# Clean stored hashes for the specified path (or default path if not specified)
 clean(){
 	if [ ! -z "${ARGS[1]}" ]; then
         if [ ! -e "${ARGS[1]}" ]; then
@@ -178,6 +187,7 @@ clean(){
     fi
 }
 
+# Configure settings (log directory, hash file name, reset to default, show configuration)
 config(){
     case ${ARGS[1]} in
 		"log")
@@ -212,13 +222,15 @@ config(){
 	esac
 }
 
+# Show version information
 version(){
 	echo "Integrity Check Tool"
-	echo "Version: $version"
+	echo "Version: v.$version"
 	echo "Author: BlackMagic Master - Szymon G."
-	echo "Version date: 2026-05-21"
+	echo "Version date: 2026-05-22"
 }
 
+# Show usage information
 help(){
 	echo "Usage: $(basename $0) {store|check|clean|config|version|help} [options]"
 	echo "Commands:"
@@ -234,12 +246,14 @@ help(){
 	echo "  help           - Show this help message"
 }
 
+# Show error message for invalid command
 error(){
 			echo "Invalid command: ${ARGS[0]}"
-            echo "Usage: $(basename $0) {store|check|update|config} [options]"
+            echo "Usage: $(basename $0) {store|check|update|config|version|help} [options]"
             exit 1
 }
 
+# Main function to parse command and execute corresponding function
 main(){
 	root_check
     case "${ARGS[0]}" in
@@ -253,7 +267,7 @@ main(){
             config
             ;;
         "help")
-            echo "Usage: $0 {store|check|config} [options]"
+            help
             ;;
         "clean")
             clean
@@ -267,4 +281,5 @@ main(){
     esac
 }
 
+# Running the tool
 main

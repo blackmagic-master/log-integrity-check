@@ -1,4 +1,5 @@
 #!/bin/bash
+# Check if the script is run as root and uninstall the integrity-check tool
 if [ "$(whoami)" != "root" ]; then
     echo "error: this tool must be run as root."
     exit 1

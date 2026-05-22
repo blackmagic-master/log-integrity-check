@@ -1,90 +1,90 @@
-# Log Integrity Check Tool
+# Integrity Check Tool
 
-A simple Bash-based tool for hashing log files and verifying their integrity.
+A small shell-based log integrity utility for storing and verifying SHA-256 hashes of files. It supports storing hashes for a default log directory or a custom path, checking file integrity, cleaning stored hashes, and configuring default behavior.
 
-## Overview
+## Features
 
-This tool scans a log directory, stores SHA256 hashes for each file, and lets you verify whether files have been modified since the last snapshot.
+- Store SHA-256 hashes for files in a directory or single file
+- Verify file integrity against stored hashes
+- Clean (remove) saved hash files
+- Configure default log directory and hash file name
+- Install/uninstall wrapper for `/usr/bin/integrity-check`
 
-## Install
+## Requirements
 
-The tool must be installed and run as `root`.
+- Linux or Unix-like environment (including macOS)
+- `bash`
+- `sha256sum`
+- Root privileges for install, uninstall, and running the tool
 
-1. Open a terminal in the repository root.
-2. Run:
+## Installation
+
+1. Run the setup script as root:
 
 ```bash
 sudo ./setup.sh
 ```
 
-This copies `integrity-check.sh` to `/usr/bin/integrity-check` and makes it executable.
-
-## Remove
-
-To uninstall the tool, run:
-
-```bash
-sudo ./uninstall.sh
-```
-
-This removes `/usr/bin/integrity-check`.
+2. This installs the tool to `/usr/bin/integrity-check`.
 
 ## Usage
 
-The command is installed as `integrity-check`.
-
 ```bash
-sudo integrity-check [command] [argument]
+sudo integrity-check <command> [path or options]
 ```
 
 ### Commands
 
-- `init [log_directory]`
-  - Creates or overwrites the hash file with SHA256 hashes for all files in the log directory.
-  - Default log directory: `/var/log`
-  - Default hash file: `/var/hashes.0`
+- `store [path]` - Store hashes for files in the specified path. If no path is provided, the default is `/var/log`.
+- `check [path]` - Verify current file hashes against the saved hash file. Defaults to `/var/log` when no path is provided.
+- `clean [path]` - Remove the stored hash file for the specified path or the default path.
+- `config <option> <value>` - Change or display configuration.
+- `version` - Show tool version information.
+- `help` - Display help usage.
 
-- `check file`
-  - Verifies the integrity of the specified file using the hash stored in the hash file.
+### Configuration options
 
-- `update`
-  - Updates the hash file with any new files in the log directory.
-
-- `config [option] [value]`
-  - Configure the tool permanently by updating the script itself.
-  - Options:
-    - `log [log_directory]` — set the default log directory.
-    - `hash [hash_file]` — set the hash file location.
-    - `default` — reset the configuration to defaults.
-    - `show` — display current and default configuration values.
-
-- `help`
-  - Displays usage information.
+- `log <path>` - Set the default log directory.
+- `hash <filename>` - Set the hash file name.
+- `default` - Reset `store_in` and `hash_file_name` to defaults.
+- `show` - Display current and default configuration.
 
 ## Examples
 
-Initialize hashing for `/var/log`:
+Store hashes for `/var/log`:
 
 ```bash
-sudo integrity-check init
+sudo integrity-check store
 ```
 
-Initialize hashing for a custom directory:
+Store hashes for a custom directory:
 
 ```bash
-sudo integrity-check init /tmp/logs
+sudo integrity-check store /path/to/directory
 ```
 
-Check a file's integrity:
+Check integrity for the default log directory:
 
 ```bash
-sudo integrity-check check /var/log/syslog
+sudo integrity-check check
 ```
 
-Update the hash file with new log files:
+Check integrity for a specific directory or file:
 
 ```bash
-sudo integrity-check update
+sudo integrity-check check /path/to/directory
+```
+
+Clean saved hashes for the default directory:
+
+```bash
+sudo integrity-check clean
+```
+
+Set a custom log directory:
+
+```bash
+sudo integrity-check config log /path/to/logs
 ```
 
 Show current configuration:
@@ -93,16 +93,19 @@ Show current configuration:
 sudo integrity-check config show
 ```
 
-Reset configuration to defaults:
+## Uninstallation
+
+Run the uninstall script as root:
 
 ```bash
-sudo integrity-check config default
+sudo ./uninstall.sh
 ```
 
 ## Notes
 
-- This tool requires superuser privileges for installation and for reading log files in protected directories.
-- The implementation stores the default hash file at `/var/hashes.0`.
+- The tool currently stores hashes in a file named `.hashes.0` by default.
+- The script expects root permissions for all commands.
+- `store` and `check` rely on `sha256sum` to compute file hashes.
 
 ## Author
 
